@@ -24,6 +24,11 @@ The essential operations that the BAL abstracts for contracts include:
 - Storing persistent data processed by the contract as Tables within the blockchain database
 - Logging contract status and debugging information, and cleanly handling error conditions
 
+#### Important Caveat
+It is critical for the smart contract developer to understand the relationship their smart contract has with any particular blockchain. On Turing-complete third party smart contracting blockchains, such as EOSIO, smart contract logic and operations are part of blockchain consensus, and are therefore recognized as part of the transaction. On curated smart contracting blockchains, such as Peerplays, third party smart contracts maintain their own data consensus, relying on the chain solely for timestamping consensus, and as a result, the smart contract's logic and operations are an informal part of the transaction. **The practical effect** of this is that, while blockchain transactions generally imply that all operations of the transation succeed or fail together, this guarantee does not hold for third party contract operations on chains where third party contracts maintain their own data consensus. On Peerplays, if our BAL contract's operation fails, this does not invalidate the transaction per Peerplays consensus: all other operations in the transaction will process regardless of the failure of our contract's operation. This is different from EOSIO, where the BAL contract is part of the blockchain consensus, and thus, if the contract's operation fails, so too does the entire transaction.
+
+In short, on some chains, third party contract operations are informal, so their failure cannot invalidate the transaction containing them. The transaction and any other operations within it may succeed even though the third party operation failed.
+
 ## Types and Interfaces
 The base class of contracts is `BAL::Contract`. Contracts may access the underlying blockchain by calling the methods of `BAL::Contract`. Note also the `BAL/IO.hpp` interface for logging and checking fatal error conditions.
 
