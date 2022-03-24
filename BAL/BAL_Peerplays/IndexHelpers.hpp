@@ -30,35 +30,29 @@ struct SecondaryIndexes_s<Object, std::void_t<typename Object::SecondaryIndexes>
 
 // Pack a variant type-and-value combination into a uint64_t for use in an index. Assigns 3 bits to type, 61 to value.
 template<typename... Ts>
-inline uint64_t Decompose(const std::variant<Ts...>& id) {
+inline uint64_t Decompose(const Util::StaticVariant<Ts...>& id) {
     static_assert(sizeof...(Ts) < 0b1000, "Variant has too many types to be decomposed.");
     uint64_t value;
-    value = std::visit([](auto&& arg) -> uint64_t {return arg;}, id);
+    Util::TypeList::runtime::Dispatch(Util::TypeList::List<Ts...>(), id.which(), [&id, &value](auto v) {
+        using T = typename decltype(v)::type;
+        static_assert(std::is_same_v<decltype(uint64_t(std::declval<T>())), uint64_t>,
+                      "All types in a decomposed variant must be convertible to uint64.");
+        value = uint64_t(id.template get<T>());
+    });
     Verify(value < (1ull << 61), "Variant value is too large to be decomposed. Please report this error");
-    return value | (uint64_t(id.index()) << 61);
+    return value | (uint64_t(id.which()) << 61);
 }
 // Get the variant which will decompose to the smallest possible value
 template<typename V>
-constexpr V Decompose_MIN() {
-    Verify(std::variant_size_v<V> > 0, "Variant should contain at least one type");
-    using T = std::variant_alternative_t<0, V>;
-    return T{0};
-}
+constexpr V Decompose_MIN() { return Util::TypeList::first<typename V::List>{0}; }
 // Get the variant which will decompose to the greatest possible value.
 // NOTE: This value should not be stored in the database; if more types are added to the variant in an update, the
 // Decompose_MAX value of that variant will change. This value is intended only for bounding searches on an index.
 template<typename V>
 inline constexpr V Decompose_MAX() {
-    Verify(std::variant_size_v<V> > 0, "Variant should contain at least one type");
-    using T = std::variant_alternative_t<std::variant_size_v<V> - 1, V>;
-    return T{~0ull>>3};
+    using T = Util::TypeList::last<typename V::List>;
+    return T{~0ull};
 }
-
-// Convert various types into a uint64_t for use in a key
-template<typename T>
-inline uint64_t KeyCast(const T& subkey) { return subkey; }
-inline uint64_t KeyCast(const Name& subkey) { return subkey.value; };
-inline uint64_t KeyCast(const Name::raw& subkey) { return (uint64_t)subkey; };
 
 // Combine several fields into a single value in order to use them all in a composite key index.
 inline UInt128 MakeCompositeKey(uint64_t a, uint64_t b) { return (UInt128(a) << 64) + b; }

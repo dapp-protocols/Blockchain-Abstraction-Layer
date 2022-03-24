@@ -86,6 +86,23 @@ public:
     void deliverCargo(AccountHandle carrier, WarehouseId warehouseId, AccountHandle manager,
                       ManifestId manifestId, CargoManifest submanifest, string documentation);
 
+    [[eosio::action("tests.run")]]
+    void runTests();
+
+private:
+    // Declare a constant for our global scope ID. This number is arbitrary; we just want to be consistent.
+    constexpr static auto GLOBAL_SCOPE = "global"_N.value;
+
+    void clean(const AccountHandle& carrier);
+
+    void testWarehouseLifecycle1();
+    void testInventoryLifecycle1();
+    void testInventoryLifecycle2();
+    void testShipAndDeliver1();
+    void testShipAndDeliver2();
+    void testShipAndDeliver3();
+
+public:
     struct [[eosio::table("warehouses")]] Warehouse {
         // Make some declarations to tell BAL about our table
         using Contract = SupplyChain;
@@ -157,7 +174,8 @@ public:
                                          DESCRIBE_ACTION("ship.invntry"_N, SupplyChain::shipInventory),
                                          DESCRIBE_ACTION("rm.cargo"_N, SupplyChain::removeCargo),
                                          DESCRIBE_ACTION("xfer.cargo"_N, SupplyChain::transferCargo),
-                                         DESCRIBE_ACTION("dlvr.cargo"_N, SupplyChain::deliverCargo)>;
+                                         DESCRIBE_ACTION("dlvr.cargo"_N, SupplyChain::deliverCargo),
+                                         DESCRIBE_ACTION("tests.run"_N, SupplyChain::runTests)>;
     using Tables = Util::TypeList::List<Warehouses, Stock, Manifests, CargoStock>;
 
     protected:

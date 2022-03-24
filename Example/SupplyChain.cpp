@@ -1,7 +1,5 @@
 #include "SupplyChain.hpp"
 
-// Declare a constant for our global scope ID. This number is arbitrary; we just want to be consistent.
-constexpr static auto GLOBAL_SCOPE = "global"_N.value;
 // Declare a constant for the maximum description string length
 constexpr static auto MAX_DESCRIPTION_SIZE = 250;
 

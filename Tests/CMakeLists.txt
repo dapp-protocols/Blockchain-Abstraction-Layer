@@ -1,4 +1,4 @@
-project(SupplyChainExample)
+project(BALTests)
 cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 17)
 
@@ -6,4 +6,4 @@ set(CMAKE_CXX_STANDARD 17)
 include(../CMakeLists.txt)
 
 # Declare the contract
-BAL_CONTRACT(NAME supplychain BAL_PATH .. SOURCES SupplyChain.cpp SupplyChainTests.cpp main.cpp)
+BAL_CONTRACT(NAME baltests BAL_PATH .. SOURCES BAL_Tests.cpp main.cpp)
