@@ -14,7 +14,7 @@ When building, it is necessary to add the following flags when running CMake to 
 
 ```cmake
 -DLLVM_ENABLE_RTTI=1 -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly \
-'-DLLVM_ENABLE_PROJECTS=clang;compiler-rt -DCMAKE_INSTALL_PREFIX=/opt/clang-eosio'
+'-DLLVM_ENABLE_PROJECTS=clang;compiler-rt' -DCMAKE_INSTALL_PREFIX=/opt/clang-eosio
 ```
 
 I also like to add the `-DCMAKE_INSTALL_PREFIX=/opt/clang-eosio` flag so that this copy of LLVM is set aside as a special build for EOSIO and does not interfere with my main (packaged) LLVM.
