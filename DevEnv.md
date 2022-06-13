@@ -8,7 +8,7 @@ This tutorial is written for developers experienced with Linux operating systems
 The EOSIO contract development environment is compiled in three steps. The first step is to build LLVM with the necessary flags for EOSIO. The second step is to build the EOSIO node, which will be used to launch local test blockchain networks to deploy and test the prototype contract on. The third step is to build and install the EOSIO Contract Development Toolkit (CDT), which is the toolchain and standard libraries for EOSIO contract development. Once the CDT is installed, we can compile a contract and load it into our testnet for testing.
 
 ##### LLVM/Clang
-LLVM/Clang can be build according to the official [instructions](https://clang.llvm.org/get_started.html). Note that, as EOSIO does not support the latest versions of LLVM, it is necessary to use an older version. At the time of this writing, version 11.1 is the latest supported version. This can be selected in the initial clone command by passing `--branch llvmorg-11.1.0`.
+LLVM/Clang can be built according to the official [instructions](https://clang.llvm.org/get_started.html). Note that, as EOSIO does not support the latest versions of LLVM, it is necessary to use an older version. At the time of this writing, version 11.1 is the latest supported version. This can be selected in the initial clone command by passing `--branch llvmorg-11.1.0`.
 
 When building, it is necessary to add the following flags when running CMake to build it for EOSIO:
 
@@ -19,7 +19,8 @@ When building, it is necessary to add the following flags when running CMake to 
 
 I also like to add the `-DCMAKE_INSTALL_PREFIX=/opt/clang-eosio` flag so that this copy of LLVM is set aside as a special build for EOSIO and does not interfere with my main (packaged) LLVM.
 
-When I build LLVM, I encounter an error about `std::numeric_limits` not being recognized. This error can be resolved by adding `#include <limits>` to the beginning of the affected files. After that, it works.
+> **Troubleshooting:**
+> When I build LLVM, I encounter an error about `std::numeric_limits` not being recognized. This error can be resolved by adding `#include <limits>` to the beginning of the affected files. After that, it works.
 
 ##### Building EOSIO Node
 Clone the EOSIO node source code repository from `https://github.com/eosio/eos`, create a `build` directory within the repository, and `cd` into it. Run CMake to configure the build. Here's an example of some commands to do this:
