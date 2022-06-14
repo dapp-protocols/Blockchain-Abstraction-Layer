@@ -20,7 +20,13 @@ When building, it is necessary to add the following flags when running CMake to 
 I also like to add the `-DCMAKE_INSTALL_PREFIX=/opt/clang-eosio` flag so that this copy of LLVM is set aside as a special build for EOSIO and does not interfere with my main (packaged) LLVM.
 
 > **Troubleshooting:**
-> When I build LLVM, I encounter an error about `std::numeric_limits` not being recognized. This error can be resolved by adding `#include <limits>` to the beginning of the affected files. After that, it works.
+> When building LLVM 11.1.0 in an updated environment, some build errors may occur due to the environment being more recent than the target LLVM. These compatibility issues have been fixed in updated versions of LLVM, and can be backported to LLVM 11.1.0 by cherry picking commits.
+>  - `llvm-project/compiler-rt/lib/sanitizer_common/sanitizer_platform_limits_posix.cpp:133:10: fatal error: linux/cyclades.h: No such file or directory`
+>    - Run `git cherry-pick 884040db086936107ec81656aa5b4c607235fb9a`
+>    - Ref https://github.com/llvm/llvm-project/commit/884040db086936107ec81656aa5b4c607235fb9a
+>  - `llvm-project/llvm/utils/benchmark/src/benchmark_register.h:17:30: error: ‘numeric_limits’ is not a member of ‘std’`
+>    - Run `git cherry-pick b498303066a63a203d24f739b2d2e0e56dca70d1`
+>    - Ref https://github.com/llvm/llvm-project/commit/b498303066a63a203d24f739b2d2e0e56dca70d1
 
 ##### Building EOSIO Node
 Clone the EOSIO node source code repository from `https://github.com/eosio/eos`, create a `build` directory within the repository, and `cd` into it. Run CMake to configure the build. Here's an example of some commands to do this:
