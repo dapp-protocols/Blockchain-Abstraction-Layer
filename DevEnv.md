@@ -49,6 +49,9 @@ Also note the many flags to CMake. The `-G Ninja` causes CMake to write Ninja bu
 > - In environments which have only dynamic Boost libraries, CMake will fail to find Boost libraries saying "no suitable build variant has been found". Work around this issue by adding the CMake argument `-DBoost_USE_STATIC_LIBS=OFF`
 > - In some environments, building fails with errors circa a `hash<>` template referenced from FC. Work around this issue by adding a `#include <boost/container_hash/hash.hpp>` to `libraries/fc/include/fc/crypto/sha256.hpp`
 > - In some environments, building fails due to missing `std::list` in FC. Work around this issue by adding a `#include <list>` to `libraries/fc/include/fc/io/raw.hpp`
+> - `eos/libraries/eos-vm/include/eosio/vm/execution_context.hpp:273:61: error: no matching function for call to ‘max(int, long int)’`
+>   - Manually apply [this commit](https://github.com/EOSIO/eos-vm/pull/228/commits/6fd38668d6fa1a909fb1322b676ba43ff56f14e2) to eos-vm in `libraries/eos-vm` directory
+>   - Ref https://github.com/EOSIO/eos-vm/issues/227
 
 After configuring, build and install the node, for example with `ninja && ninja install`
 
