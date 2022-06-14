@@ -80,8 +80,8 @@ Similarly to the node, clone the repo, make a build directory, and configure. No
 
 ```sh
 $ git clone https://github.com/dapp-protocols/eosio-cdt --recursive
-$ mkdir eosio.cdt/build
-$ cd eosio.cdt/build
+$ mkdir eosio-cdt/build
+$ cd eosio-cdt/build
 $ export CMAKE_PREFIX_PATH="/opt/eos:$CMAKE_PREFIX_PATH"
 $ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/eosio-cdt ..
 ```
