@@ -88,11 +88,15 @@ $ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/eosio-cd
 
 The options here are similar to the options in the node above, and follow the same rules; however, it is necessary to add the CMAKE_PREFIX_PATH as an environment variable as the CDT's cmake configuration does not properly propagate this value if passed to CMake directly.
 
-> **Troubleshooting:** If it was necessary to specify `-DBoost_USE_STATIC_LIBS=OFF` when building EOSIO above, it will be necessary here as well. Moreover, when building fails even with that flag set, edit `build/tests/integration/CMakeCache.txt` and set `Boost_USE_STATIC_LIBS=ON` to `OFF` as well, then try building again.
+> **Troubleshooting:**
+> - If it was necessary to specify `-DBoost_USE_STATIC_LIBS=OFF` when building EOSIO above, it will be necessary here as well. Moreover, when building fails even with that flag set, edit `build/tests/integration/CMakeCache.txt` and set `Boost_USE_STATIC_LIBS=ON` to `OFF` as well, then try building again.
+> - The CDT builds a custom LLVM for building the contracts, and as with the LLVM build above, this LLVM may also fail to build with `error: ‘numeric_limits’ is not a member of ‘std’`.
+>   - Cherry picking doesn't work here, so manually edit `eosio_llvm/utils/benchmark/src/benchmark_register.h`
+>   - Add `#include <limits>` near beginning of file
 
 Now, build and install the CDT, i.e. `ninja && ninja install`. Note that this build takes quite a while and is usually working even when it doesn't appear as such.
 
-Note: Like with the LLVM build above, the CDT builds a custom LLVM for building the contracts, and this LLVM also fails to build for me with errors around `std::numeric_limits`. These can also be fixed by adding `#include <limits>` in the beginning of the affected files.
+Note: Like for me with errors around `std::numeric_limits`. These can also be fixed by adding `#include <limits>` in the beginning of the affected files.
 
 ##### Building a Contract for EOSIO
 Now that the EOSIO build environment is established, we can use it to build a contract. Let's build the BAL's example supply chain contract.
