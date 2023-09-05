@@ -33,7 +33,7 @@
 #include <string>
 #include <string_view>
 
-#ifndef BAL_PLATFORM_EOSIO
+#ifndef BAL_PLATFORM_LEAP
 namespace BAL {
    /**
     * Wraps a %uint64_t to ensure it is only passed to methods that expect a %name.
@@ -236,6 +236,11 @@ namespace BAL {
          return {buffer, end};
       }
 
+      /**
+       * @brief Conversion operator allows Name to implicitly convert to string
+       */
+      operator std::string()const { return to_string(); }
+
       /// @cond INTERNAL
 
       /**
@@ -329,7 +334,3 @@ inline constexpr BAL::Name operator""_N() {
 /// @endcond
 #endif
 
-#ifdef BAL_PLATFORM_PEERPLAYS
-#include<fc/reflect/reflect.hpp>
-FC_REFLECT(BAL::Name, (value))
-#endif

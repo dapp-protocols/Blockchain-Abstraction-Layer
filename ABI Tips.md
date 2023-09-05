@@ -1,8 +1,8 @@
 # Overview
 
-A BAL contract that will be deployed to an EOSIO backend must be paired with an [Application Binary Interface (ABI)](https://developers.eos.io/manuals/eosio.cdt/latest/best-practices/abi/understanding-abi-files) during deployment.  The following tips are intended to assist those developers who will manually construct their own ABI.
+A BAL contract that will be deployed to a Leap backend must be paired with an [Application Binary Interface (ABI)](https://developers.eos.io/manuals/eosio.cdt/latest/best-practices/abi/understanding-abi-files) during deployment.  The following tips are intended to assist those developers who will manually construct their own ABI.
 
-# Tips for Creating an EOSIO ABI for a BAL contract
+# Tips for Creating a Leap ABI for a BAL contract
 
 - ABI action names MUST match their declaration in the BAL contract's C++ header DESCRIBE_ACTION names
 

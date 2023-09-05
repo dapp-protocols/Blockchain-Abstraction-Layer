@@ -14,28 +14,13 @@ function(BAL_CONTRACT)
     # Add BAL to include paths
     include_directories("${CONTRACT_BAL_PATH}")
 
-    # Evaluate Peerplays contract build target
-    set(PEERPLAYS_PATH "/opt/peerplays" CACHE STRING "Path to the Peerplays installation")
-    if (EXISTS "${PEERPLAYS_PATH}/lib/libgraphene_chain.so")
-        set(PEERPLAYS_FOUND true)
-    endif()
+    # Evaluate Leap contract build target
+    find_package(cdt HINTS "${CDT_PATH}")
+    if (cdt_FOUND)
+        message("Leap CDT Found; enabling Leap contract build")
 
-    # If Peerplays is found, enable build for Peerplays contract
-    if (PEERPLAYS_FOUND)
-        message("Peerplays found; enabling Peerplays contract build")
-
-        add_subdirectory("${CONTRACT_BAL_PATH}/Peerplays" "${CMAKE_CURRENT_BINARY_DIR}/BAL/Peerplays")
+        add_subdirectory("${CONTRACT_BAL_PATH}/Leap" "${CMAKE_CURRENT_BINARY_DIR}/BAL/Leap")
     else()
-        message("Peerplays not found; disabling Peerplays contract build")
-    endif()
-
-    # Evaluate EOSIO contract build target
-    find_package(eosio.cdt HINTS "${CDT_PATH}")
-    if (eosio.cdt_FOUND)
-        message("EOSIO CDT Found; enabling EOSIO contract build")
-
-        add_subdirectory("${CONTRACT_BAL_PATH}/EOSIO" "${CMAKE_CURRENT_BINARY_DIR}/BAL/EOSIO")
-    else()
-        message("EOSIO CDT Not found; disabling EOSIO contract build")
+        message("Leap CDT Not found; disabling Leap contract build")
     endif()
 endfunction()

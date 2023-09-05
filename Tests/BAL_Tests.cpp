@@ -1,6 +1,112 @@
 #include "BAL_Tests.hpp"
 
+// ================================
+// Compile-time tests of reflection
+// ================================
+namespace TL = Util::TypeList;
+using std::is_same_v;
+using std::string_view;
+using std::literals::operator""sv;
+
+using GI = BALTests::GroceryItem;
+using GIRefl = Util::Reflector<BALTests::GroceryItem>;
+// Test GroceryItem reflection
+static_assert(GIRefl::IsDefined::value, "GroceryItem's reflector not defined");
+static_assert(is_same_v<GIRefl::Type, GI>, "GroceryItem's reflector has wrong type");
+static_assert(TL::length<GIRefl::Members>() == 4, "GroceryItem's member list wrong size");
+static_assert(TL::length<GIRefl::NativeMembers>() == 4, "GroceryItem's member list wrong size");
+static_assert(TL::length<GIRefl::InheritedMembers>() == 0, "GroceryItem's member list wrong size");
+static_assert(TL::length<GIRefl::BaseClasses>() == 0, "GroceryItem's base class list wrong size");
+static_assert(GIRefl::name() == string_view("GroceryItem"), "GroceryItem's reflected name incorrect");
+
+// Test GroceryItem's member reflections
+template<typename... Refls>
+using TestContainers = std::conjunction<std::conjunction<std::is_same<typename Refls::Container, GI>, std::is_same<typename Refls::NativeContainer, GI>>...>;
+static_assert(TL::apply<GIRefl::Members, TestContainers>::value, "Field reflections' Container or NativeContainer not as expected");
+
+struct ToType { template<typename Refl> struct transform { using type = typename Refl::Type; }; };
+static_assert(is_same_v<TL::transform<GIRefl::Members, ToType>, TL::List<GroceryId, string, string, uint32_t>>, "Reflected member types not as expected");
+
+template<typename... Refls>
+using AllNative = std::conjunction<std::bool_constant<Refls::isNative>...>;
+static_assert(TL::apply<GIRefl::Members, AllNative>::value, "Not all members reflected as native");
+
+template<typename... Refls>
+struct NamesAndPointers {
+    constexpr static auto get() {
+        return std::make_tuple(std::make_tuple(Refls::name, Refls::pointer)...);
+    }
+};
+using GetNamesAndPointers = TL::apply<GIRefl::Members, NamesAndPointers>;
+static_assert(GetNamesAndPointers::get() == std::make_tuple(std::make_tuple("id"sv, &GI::id), std::make_tuple("name"sv, &GI::name), std::make_tuple("sku"sv, &GI::sku), std::make_tuple("net_weight_grams"sv, &GI::net_weight_grams)), "Reflected names and pointers not as expected");
+
+// Declare some new structs and test reflection works with inherited and empty classes
+struct Base {
+    int a;
+    char b;
+
+    BAL_REFLECT(Base, (a)(b))
+};
+struct Derived1 : public Base {
+    // No members
+    BAL_REFLECT_EMPTY(Derived1, Base)
+};
+struct Derived2 : public Derived1 {
+    bool c;
+    BAL_REFLECT(Derived2, (c), Derived1)
+};
+struct Base2 {
+    double z;
+
+    BAL_REFLECT(Base2, (z))
+};
+struct Derived3: public Derived2, public Base2 {
+    BAL_REFLECT_EMPTY(Derived3, Derived2, Base2)
+};
+
+static_assert(TL::length<Util::Reflector<Derived2>::Members>() == 3, "Member count wrong");
+static_assert(TL::length<Util::Reflector<Derived2>::NativeMembers>() == 1, "Native member count wrong");
+static_assert(TL::length<Util::Reflector<Derived2>::InheritedMembers>() == 2, "Inherited member count wrong");
+static_assert(is_same_v<Util::Reflector<Derived2>::BaseClasses, TL::List<Derived1>>, "Base class list wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived2>::Members, 0>::Container, Derived2>, "Container wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived2>::Members, 1>::Container, Derived2>, "Container wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived2>::Members, 2>::Container, Derived2>, "Container wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived2>::Members, 0>::NativeContainer, Base>, "NativeContainer wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived2>::Members, 1>::NativeContainer, Base>, "NativeContainer wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived2>::Members, 2>::NativeContainer, Derived2>, "NativeContainer wrong");
+static_assert(!TL::at<Util::Reflector<Derived2>::Members, 0>::isNative, "isNative wrong");
+static_assert(!TL::at<Util::Reflector<Derived2>::Members, 1>::isNative, "isNative wrong");
+static_assert(TL::at<Util::Reflector<Derived2>::Members, 2>::isNative, "isNative wrong");
+static_assert(TL::at<Util::Reflector<Derived2>::Members, 0>::name == "a", "name wrong");
+static_assert(TL::at<Util::Reflector<Derived2>::Members, 1>::name == "b", "name wrong");
+static_assert(TL::at<Util::Reflector<Derived2>::Members, 2>::name == "c", "name wrong");
+
+static_assert(TL::length<Util::Reflector<Derived3>::Members>() == 4, "Member count wrong");
+static_assert(TL::length<Util::Reflector<Derived3>::NativeMembers>() == 0, "Native member count wrong");
+static_assert(TL::length<Util::Reflector<Derived3>::InheritedMembers>() == 4, "Inherited member count wrong");
+static_assert(is_same_v<Util::Reflector<Derived3>::BaseClasses, TL::List<Derived2, Base2>>, "Base class list wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived3>::Members, 0>::Container, Derived3>, "Container wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived3>::Members, 1>::Container, Derived3>, "Container wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived3>::Members, 2>::Container, Derived3>, "Container wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived3>::Members, 3>::Container, Derived3>, "Container wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived3>::Members, 0>::NativeContainer, Base>, "NativeContainer wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived3>::Members, 1>::NativeContainer, Base>, "NativeContainer wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived3>::Members, 2>::NativeContainer, Derived2>, "NativeContainer wrong");
+static_assert(is_same_v<TL::at<Util::Reflector<Derived3>::Members, 3>::NativeContainer, Base2>, "NativeContainer wrong");
+static_assert(!TL::at<Util::Reflector<Derived3>::Members, 0>::isNative, "isNative wrong");
+static_assert(!TL::at<Util::Reflector<Derived3>::Members, 1>::isNative, "isNative wrong");
+static_assert(!TL::at<Util::Reflector<Derived3>::Members, 2>::isNative, "isNative wrong");
+static_assert(!TL::at<Util::Reflector<Derived3>::Members, 3>::isNative, "isNative wrong");
+static_assert(TL::at<Util::Reflector<Derived3>::Members, 0>::name == "a", "name wrong");
+static_assert(TL::at<Util::Reflector<Derived3>::Members, 1>::name == "b", "name wrong");
+static_assert(TL::at<Util::Reflector<Derived3>::Members, 2>::name == "c", "name wrong");
+static_assert(TL::at<Util::Reflector<Derived3>::Members, 3>::name == "z", "name wrong");
+
+// =============
+// Runtime tests
+// =============
 void BALTests::runTests() {
+    testReflection();
     testScope();
     testIteration1();
     testEraseAndIterate2A();
@@ -20,23 +126,27 @@ void BALTests::runTests() {
     testModify1B();
     testModify1C();
     testModify1D();
+
+    BAL::Log("ALL Tests PASSED");
 }
 
 
-/// Dataset A: The sequence of the objects in the primary index
-/// differs from the secondary index (by net weight).
-///
-/// The primary index sequence is:
-/// Apple, Net wt.: 25
-/// Banana, Net wt.: 35
-/// Carrot, Net wt.: 60
-/// Date, Net wt.: 45
-///
-/// The secondary index sequence is:
-/// Apple, Net wt.: 25
-/// Banana, Net wt.: 35
-/// Date, Net wt.: 45
-/// Carrot, Net wt.: 60
+/**
+ * Dataset A: The sequence of the objects in the primary index
+ * differs from the secondary index (by net weight).
+ *
+ * The primary index sequence is:
+ * Apple, Net wt.: 25
+ * Banana, Net wt.: 35
+ * Carrot, Net wt.: 60
+ * Date, Net wt.: 45
+ *
+ * The secondary index sequence is:
+ * Apple, Net wt.: 25
+ * Banana, Net wt.: 35
+ * Date, Net wt.: 45
+ * Carrot, Net wt.: 60
+ */
 void BALTests::populateDatasetA(GroceryItems& items) {
     // Add items
     items.create([](GroceryItem& g) {
@@ -66,12 +176,14 @@ void BALTests::populateDatasetA(GroceryItems& items) {
 }
 
 
-/// Dataset B: The sequence of the objects in the primary and secondary indices match.
-///
-/// Apple, Net wt.: 10
-/// Banana, Net wt.: 20
-/// Carrot, Net wt.: 30
-/// Date, Net wt.: 40
+/**
+ * Dataset B: The sequence of the objects in the primary and secondary indices match.
+ *
+ * Apple, Net wt.: 10
+ * Banana, Net wt.: 20
+ * Carrot, Net wt.: 30
+ * Date, Net wt.: 40
+ */
 void BALTests::populateDatasetB(GroceryItems& items) {
     // Add items
     items.create([](GroceryItem& g) {
@@ -112,8 +224,46 @@ auto ClearGroceries = [](BALTests::GroceryItems& groceries) {
 // Name of test tables
 constexpr static auto TestGroceriesTableName = "testing"_N;
 
+/**
+ * Runtime tests of BAL reflection
+ */
+void BALTests::testReflection() {
+    GroceryItem item {GroceryId{7}, "Blueberries", "b100be1212135", 250};
+    const GroceryItem& constItem = item;
 
-/// Test that differently scoped tables are distinct from each other
+    BAL::Verify(TL::at<GIRefl::Members, 0>::get(item).value == 7, "Bad ID");
+    TL::at<GIRefl::Members, 0>::get(item) = GroceryId{10};
+    BAL::Verify(TL::at<GIRefl::Members, 0>::get(constItem).value == 10, "Bad ID");
+
+    BAL::Verify(TL::at<GIRefl::Members, 1>::get(item) == "Blueberries", "Bad name");
+    TL::at<GIRefl::Members, 1>::get(item) = "Raspberries";
+    BAL::Verify(TL::at<GIRefl::Members, 1>::get(constItem) == "Raspberries", "Bad name");
+
+    BAL::Verify(TL::at<GIRefl::Members, 2>::get(item) == "b100be1212135", "Bad SKU");
+    TL::at<GIRefl::Members, 2>::get(item) = "boiled skuid";
+    BAL::Verify(TL::at<GIRefl::Members, 2>::get(constItem) == "boiled skuid", "Bad SKU");
+
+    BAL::Verify(TL::at<GIRefl::Members, 3>::get(item) == 250, "Bad weight");
+    TL::at<GIRefl::Members, 3>::get(item) = 80000;
+    BAL::Verify(TL::at<GIRefl::Members, 3>::get(constItem) == 80000, "Bad weight");
+    BAL::Log("Reflection test 1: PASSED");
+
+    Derived3 d3;
+    Base& b1 = d3;
+    Derived2& d2 = d3;
+    Base2& b2 = d3;
+    using D3Members = Util::Reflector<Derived3>::Members;
+    auto& a = TL::at<D3Members, 0>::get(d3);
+    auto& b = TL::at<D3Members, 1>::get(d3);
+    auto& c = TL::at<D3Members, 2>::get(d3);
+    auto& z = TL::at<D3Members, 3>::get(d3);
+    BAL::Verify(&a == &d3.a && &a == &b1.a && &b == &d3.b && &b == &b1.b && &c == &d3.c && &c == &d2.c && &z == &d3.z && &z == &b2.z, "Pointers don't match");
+    BAL::Log("Reflection test 2: PASSED");
+}
+
+/**
+ * Test that differently scoped tables are distinct from each other
+ */
 void BALTests::testScope() {
     ///
     /// Initialize Test
@@ -123,7 +273,7 @@ void BALTests::testScope() {
     BAL::Log("\n\nTesting Scope");
 
     GroceryItems table1 = getTable<GroceryItems>(TestGroceriesTableName);
-    GroceryItems table2 = getTable<GroceryItems>("other"_N.value);
+    GroceryItems table2 = getTable<GroceryItems>("other"_N);
 
     // Ensure no items are present
     {
@@ -193,9 +343,11 @@ void BALTests::testScope() {
 }
 
 
-/// Test iterating over a fixed content table
-///
-/// Dataset A: The sequence of the secondary index differs from the primary index
+/**
+ * Test iterating over a fixed content table
+ *
+ * Dataset A: The sequence of the secondary index differs from the primary index
+ */
 void BALTests::testIteration1() {
     ///
     /// Initialize Test
@@ -338,9 +490,11 @@ void BALTests::testIteration1() {
 }
 
 
-/// Test iterating over a table whose objects are being erased
-/// from the "middle" of the secondary index
-/// via the primary index's `void erase(const Object& obj)`
+/**
+ * Test iterating over a table whose objects are being erased
+ * from the "middle" of the secondary index
+ * via the primary index's `void erase(const Object& obj)`
+ */
 void BALTests::testEraseAndIterate2A() {
     BAL::Log("\n\nTesting Iteration 2A");
 
@@ -353,9 +507,11 @@ void BALTests::testEraseAndIterate2A() {
     testEraseAndIterate2(e);
 }
 
-/// Test iterating over a table whose objects are being erased
-/// from the "middle" of the secondary index
-/// via the secondary index's `void erase(const Object& obj)`
+/**
+ * Test iterating over a table whose objects are being erased
+ * from the "middle" of the secondary index
+ * via the secondary index's `void erase(const Object& obj)`
+ */
 void BALTests::testEraseAndIterate2B() {
     BAL::Log("\n\nTesting Iteration 2B");
 
@@ -369,9 +525,11 @@ void BALTests::testEraseAndIterate2B() {
     testEraseAndIterate2(e);
 }
 
-/// Test iterating over a table whose objects are being erased
-/// from the "middle" of the secondary index
-/// via the primary index's "forward" `iterator erase(iterator itr)`
+/**
+ * Test iterating over a table whose objects are being erased
+ * from the "middle" of the secondary index
+ * via the primary index's "forward" `iterator erase(iterator itr)`
+ */
 void BALTests::testEraseAndIterate2C() {
     BAL::Log("\n\nTesting Iteration 2C");
 
@@ -385,9 +543,11 @@ void BALTests::testEraseAndIterate2C() {
     testEraseAndIterate2(e);
 }
 
-/// Test iterating over a table whose objects are being erased
-/// from the "middle" of the secondary index
-/// via the secondary index's "forward" `iterator erase(iterator itr)`
+/**
+ * Test iterating over a table whose objects are being erased
+ * from the "middle" of the secondary index
+ * via the secondary index's "forward" `iterator erase(iterator itr)`
+ */
 void BALTests::testEraseAndIterate2D() {
     BAL::Log("\n\nTesting Iteration 2D");
 
@@ -406,21 +566,23 @@ void BALTests::testEraseAndIterate2D() {
     testEraseAndIterate2(e);
 }
 
-/// Test iterating over a table whose objects are being progressively erased
-/// from the "middle" of the secondary index of Dataset A
-/// whose **initial** sequence of the secondary index differs from the primary index.
-///
-/// The primary index sequence is:
-/// Apple, Net wt.: 25
-/// Banana, Net wt.: 35
-/// Carrot, Net wt.: 60
-/// Date, Net wt.: 45
-///
-/// The secondary index sequence is:
-/// Apple, Net wt.: 25
-/// Banana, Net wt.: 35
-/// Date, Net wt.: 45
-/// Carrot, Net wt.: 60
+/**
+ * Test iterating over a table whose objects are being progressively erased
+ * from the "middle" of the secondary index of Dataset A
+ * whose **initial** sequence of the secondary index differs from the primary index.
+ *
+ * The primary index sequence is:
+ * Apple, Net wt.: 25
+ * Banana, Net wt.: 35
+ * Carrot, Net wt.: 60
+ * Date, Net wt.: 45
+ *
+ * The secondary index sequence is:
+ * Apple, Net wt.: 25
+ * Banana, Net wt.: 35
+ * Date, Net wt.: 45
+ * Carrot, Net wt.: 60
+ */
 void BALTests::testEraseAndIterate2(Eraser& eraser) {
     ///
     /// Initialize Test
@@ -811,9 +973,11 @@ void BALTests::testEraseAndIterate2(Eraser& eraser) {
 }
 
 
-/// Test iterating over a table whose objects are being erased
-/// from the "begin" of the secondary index
-/// via the primary index's `void erase(const Object& obj)`
+/**
+ * Test iterating over a table whose objects are being erased
+ * from the "begin" of the secondary index
+ * via the primary index's `void erase(const Object& obj)`
+ */
 void BALTests::testEraseAndIterate3A() {
     BAL::Log("\n\nTesting Iteration 3A");
 
@@ -826,9 +990,11 @@ void BALTests::testEraseAndIterate3A() {
     testEraseAndIterate3(e);
 }
 
-/// Test iterating over a table whose objects are being erased
-/// from the "begin" of the secondary index
-/// via the secondary index's `void erase(const Object& obj)`
+/**
+ * Test iterating over a table whose objects are being erased
+ * from the "begin" of the secondary index
+ * via the secondary index's `void erase(const Object& obj)`
+ */
 void BALTests::testEraseAndIterate3B() {
     BAL::Log("\n\nTesting Iteration 3B");
 
@@ -842,9 +1008,11 @@ void BALTests::testEraseAndIterate3B() {
     testEraseAndIterate3(e);
 }
 
-/// Test iterating over a table whose objects are being erased
-/// from the "begin" of the secondary index
-/// via the primary index's "forward" `iterator erase(iterator itr)`
+/**
+ * Test iterating over a table whose objects are being erased
+ * from the "begin" of the secondary index
+ * via the primary index's "forward" `iterator erase(iterator itr)`
+ */
 void BALTests::testEraseAndIterate3C() {
     BAL::Log("\n\nTesting Iteration 3C");
 
@@ -858,9 +1026,11 @@ void BALTests::testEraseAndIterate3C() {
     testEraseAndIterate3(e);
 }
 
-/// Test iterating over a table whose objects are being erased
-/// from the "begin" of the secondary index
-/// via the secondary index's "forward" `iterator erase(iterator itr)`
+/**
+ * Test iterating over a table whose objects are being erased
+ * from the "begin" of the secondary index
+ * via the secondary index's "forward" `iterator erase(iterator itr)`
+ */
 void BALTests::testEraseAndIterate3D() {
     BAL::Log("\n\nTesting Iteration 3D");
 
@@ -879,21 +1049,24 @@ void BALTests::testEraseAndIterate3D() {
     testEraseAndIterate3(e);
 }
 
-/// Test iterating over a table whose objects are being progressively erased
-/// from the "begin" of the secondary index of Dataset A
-/// whose **initial** sequence of the secondary index differs from the primary index.
-///
-/// The **initial** primary index sequence is:
-/// Apple, Net wt.: 25
-/// Banana, Net wt.: 35
-/// Carrot, Net wt.: 60
-/// Date, Net wt.: 45
-///
-/// The **initial** secondary index sequence is:
-/// Apple, Net wt.: 25
-/// Banana, Net wt.: 35
-/// Date, Net wt.: 45
-/// Carrot, Net wt.: 60
+
+/**
+ * Test iterating over a table whose objects are being progressively erased
+ * from the "begin" of the secondary index of Dataset A
+ * whose **initial** sequence of the secondary index differs from the primary index.
+ *
+ * The **initial** primary index sequence is:
+ * Apple, Net wt.: 25
+ * Banana, Net wt.: 35
+ * Carrot, Net wt.: 60
+ * Date, Net wt.: 45
+ *
+ * The **initial** secondary index sequence is:
+ * Apple, Net wt.: 25
+ * Banana, Net wt.: 35
+ * Date, Net wt.: 45
+ * Carrot, Net wt.: 60
+ */
 void BALTests::testEraseAndIterate3(Eraser& eraser) {
     ///
     /// Initialize Test
@@ -1289,9 +1462,11 @@ void BALTests::testEraseAndIterate3(Eraser& eraser) {
 }
 
 
-/// Test iterating over a table whose objects are being erased
-/// from the "end" of the secondary index
-/// via the primary index's `void erase(const Object& obj)`
+/**
+ * Test iterating over a table whose objects are being erased
+ * from the "end" of the secondary index
+ * via the primary index's `void erase(const Object& obj)`
+ */
 void BALTests::testEraseAndIterate4A() {
     BAL::Log("\n\nTesting Iteration 4A");
 
@@ -1304,9 +1479,11 @@ void BALTests::testEraseAndIterate4A() {
     testEraseAndIterate4(e);
 }
 
-/// Test iterating over a table whose objects are being erased
-/// from the "end" of the secondary index
-/// via the secondary index's `void erase(const Object& obj)`
+/**
+ * Test iterating over a table whose objects are being erased
+ * from the "end" of the secondary index
+ * via the secondary index's `void erase(const Object& obj)`
+ */
 void BALTests::testEraseAndIterate4B() {
     BAL::Log("\n\nTesting Iteration 4B");
 
@@ -1320,9 +1497,11 @@ void BALTests::testEraseAndIterate4B() {
     testEraseAndIterate4(e);
 }
 
-/// Test iterating over a table whose objects are being erased
-/// from the "end" of the secondary index
-/// via the primary index's "forward" `iterator erase(iterator itr)`
+/**
+ * Test iterating over a table whose objects are being erased
+ * from the "end" of the secondary index
+ * via the primary index's "forward" `iterator erase(iterator itr)`
+ */
 void BALTests::testEraseAndIterate4C() {
     BAL::Log("\n\nTesting Iteration 4C");
 
@@ -1336,9 +1515,11 @@ void BALTests::testEraseAndIterate4C() {
     testEraseAndIterate4(e);
 }
 
-/// Test iterating over a table whose objects are being erased
-/// from the "end" of the secondary index
-/// via the secondary index's "forward" `iterator erase(iterator itr)`
+/**
+ * Test iterating over a table whose objects are being erased
+ * from the "end" of the secondary index
+ * via the secondary index's "forward" `iterator erase(iterator itr)`
+ */
 void BALTests::testEraseAndIterate4D() {
     BAL::Log("\n\nTesting Iteration 4D");
 
@@ -1357,21 +1538,23 @@ void BALTests::testEraseAndIterate4D() {
     testEraseAndIterate4(e);
 }
 
-/// Test iterating over a table whose objects are being progressively erased
-/// from the "end" of the secondary index of Dataset A
-/// whose **initial** sequence of the secondary index differs from the primary index.
-///
-/// The **initial** primary index sequence is:
-/// Apple, Net wt.: 25
-/// Banana, Net wt.: 35
-/// Carrot, Net wt.: 60
-/// Date, Net wt.: 45
-///
-/// The **initial** secondary index sequence is:
-/// Apple, Net wt.: 25
-/// Banana, Net wt.: 35
-/// Date, Net wt.: 45
-/// Carrot, Net wt.: 60
+/**
+ * Test iterating over a table whose objects are being progressively erased
+ * from the "end" of the secondary index of Dataset A
+ * whose **initial** sequence of the secondary index differs from the primary index.
+ *
+ * The **initial** primary index sequence is:
+ * Apple, Net wt.: 25
+ * Banana, Net wt.: 35
+ * Carrot, Net wt.: 60
+ * Date, Net wt.: 45
+ *
+ * The **initial** secondary index sequence is:
+ * Apple, Net wt.: 25
+ * Banana, Net wt.: 35
+ * Date, Net wt.: 45
+ * Carrot, Net wt.: 60
+ */
 void BALTests::testEraseAndIterate4(Eraser& eraser) {
     ///
     /// Initialize Test
@@ -1771,14 +1954,16 @@ void BALTests::testEraseAndIterate4(Eraser& eraser) {
 }
 
 
-/// Test bounding and finding over a fixed content table
-///
-/// Dataset B: The sequence of the secondary index matches the primary index
-/// -
-/// Apple, Net wt.: 10
-/// Banana, Net wt.: 20
-/// Carrot, Net wt.: 30
-/// Date, Net wt.: 40
+/**
+ * Test bounding and finding over a table whose contents are progressively deleted over four phases
+ *
+ * Dataset B: The sequence of the secondary index matches the primary index
+ * -
+ * Apple, Net wt.: 10
+ * Banana, Net wt.: 20
+ * Carrot, Net wt.: 30
+ * Date, Net wt.: 40
+ */
 void BALTests::testBoundsAndFind_DatasetB_1() {
     ///
     /// Initialize Test
@@ -2486,10 +2671,12 @@ void BALTests::testBoundsAndFind_DatasetB_1() {
 }
 
 
-/// Test modifying an item such that its sequence in the secondary index changes.
-/// Modify via the primary table's `void modify(const Object& obj, Modifier&& modifier)`.
-///
-/// Dataset A: The sequence of the secondary index differs from the primary index
+/**
+ * Test modifying an item such that its sequence in the secondary index changes.
+ * Modify via the primary table's `void modify(const Object& obj, Modifier&& modifier)`.
+ *
+ * Dataset A: The sequence of the secondary index differs from the primary index
+ */
 void BALTests::testModify1A() {
     BAL::Log("\n\nTesting Modify 1A");
 
@@ -2506,11 +2693,12 @@ void BALTests::testModify1A() {
     testModify1(grocery_items, m);
 }
 
-
-/// Test modifying an item such that its sequence in the secondary index changes.
-/// Modify via the secondary table's `void modify(const Object& obj, Modifier&& modifier)`
-///
-/// Dataset A: The sequence of the secondary index differs from the primary index
+/**
+ * Test modifying an item such that its sequence in the secondary index changes.
+ * Modify via the secondary table's `void modify(const Object& obj, Modifier&& modifier)`
+ *
+ * Dataset A: The sequence of the secondary index differs from the primary index
+ */
 void BALTests::testModify1B() {
     BAL::Log("\n\nTesting Modify 1B");
 
@@ -2528,10 +2716,12 @@ void BALTests::testModify1B() {
     testModify1(grocery_items, m);
 }
 
-/// Test modifying an item such that its sequence in the secondary index changes.
-/// Modify via the primary table's `void modify(iterator itr, Modifier&& modifier)`.
-///
-/// Dataset A: The sequence of the secondary index differs from the primary index
+/**
+ * Test modifying an item such that its sequence in the secondary index changes.
+ * Modify via the primary table's `void modify(iterator itr, Modifier&& modifier)`.
+ *
+ * Dataset A: The sequence of the secondary index differs from the primary index
+ */
 void BALTests::testModify1C() {
     BAL::Log("\n\nTesting Modify 1C");
 
@@ -2549,10 +2739,12 @@ void BALTests::testModify1C() {
     testModify1(grocery_items, m);
 }
 
-/// Test modifying an item such that its sequence in the secondary index changes.
-/// Modify via the secondary index's `void modify(iterator itr, Modifier&& modifier)`.
-///
-/// Dataset A: The sequence of the secondary index differs from the primary index
+/**
+ * Test modifying an item such that its sequence in the secondary index changes.
+ * Modify via the secondary index's `void modify(iterator itr, Modifier&& modifier)`.
+ *
+ * Dataset A: The sequence of the secondary index differs from the primary index
+ */
 void BALTests::testModify1D() {
     BAL::Log("\n\nTesting Modify 1D");
 
@@ -2573,10 +2765,12 @@ void BALTests::testModify1D() {
     testModify1(grocery_items, m);
 }
 
-/// Dataset A: The sequence of the secondary index differs from the primary index
-///
-/// Use the same GroceryItems that was instantiated during the initialization of the test
-/// to avoid differences in "cached views" that can persist among different instances.
+/**
+ * Dataset A: The sequence of the secondary index differs from the primary index
+ *
+ * Use the same GroceryItems that was instantiated during the initialization of the test
+ * to avoid differences in "cached views" that can persist among different instances.
+ */
 void BALTests::testModify1(GroceryItems& grocery_items, Modifier& modifier) {
     ///
     /// Initialize Test

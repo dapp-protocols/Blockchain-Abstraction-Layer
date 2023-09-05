@@ -1,10 +1,13 @@
 # Smart Contract Tutorial
 
+[[_TOC_]]
+
 In this document, we explore a tutorial on how to create a smart contract based on the Blockchain Abstraction Layer. A smart contract is the basis of a decentralized application. A decentralized application is an application based on and delivered by verifiable, decentralized technologies. A blockchain is an example of a decentralized back-end technology, and a smart contract is a specific cluster of functionalities defined within a given blockchain. The smart contract, which executes within the blockchain, forms the back-end for a decentralized application. Users interact with this contract back-end using a front-end app running on their device.
 
 A smart contract consists of executable code which is loaded into a blockchain node and executed by the blockchain when it is invoked by a transaction being processed by that blockchain. The Blockchain Abstraction Layer, or BAL, is a library and environment for smart contract code which abstracts the disparate interfaces and environments of multiple blockchains, providing a unified and consistent basis for smart contracts so that a single implemented contract can be deployed unmodified on multiple blockchains.
 
 In this tutorial, we will explore the process of creating a new smart contract from scratch using the BAL. This contract will implement the back-end for a decentralized inventory and supply chain tracking system which can be used to track raw materials and products as they progress through a supply chain. The contract will track materials as they are moved between warehouses, manufactured into products, and delivered to customers, ensuring that a delivered product can be tracked to the origins of its constituent materials.
+
 
 ### Smart Contract Design
 While a smart contract is not a user application, it is important to consider, before writing the code, the people who will be using the contract and how they will be interacting with it. This makes it easy to create quality apps for the contract: apps that enable people to easily and intuitively use the contract to solve their problems or satisfy their customers.
@@ -71,10 +74,10 @@ The only means a smart contract has of persisting data is the blockchain databas
 
 Within the BAL and its supported blockchains, the blockchain database is an in-memory, relational database. A smart contract utilizes the blockchain database by declaring tables to be stored and then reading and writing rows in those tables. These tables are arbitrary structures containing several fields of arbitrary types. All tables must feature a 64-bit primary key which is usually used as an ID field. Tables may also define several secondary keys, which are calculated from the fields of the table, to enable the table to be sorted or searched based on other indexes than the primary key.
 
-In some blockchains, including EOSIO, storage space in blockchain tables is billed to accounts and is often expensive, so it is prudent to minimize the amount of data stored here and delete records as soon as they are no longer needed. The blockchain database is visible to clients via blockchain API servers, and clients can read this data to inspect blockchain state without making transactions; however, clients submitting transactions based upon this state cannot be certain that the state will not have been changed by the time the transaction is processed.
+In some blockchains, such as EOS, storage space in blockchain tables is billed to accounts and is often expensive, so it is prudent to minimize the amount of data stored here and delete records as soon as they are no longer needed. The blockchain database is visible to clients via blockchain API servers, and clients can read this data to inspect blockchain state without making transactions; however, clients submitting transactions based upon this state cannot be certain that the state will not have been changed by the time the transaction is processed.
 
 ##### Supply Chain Contract Actions
-The actions of a contract are the sole interface by which applications, on behalf of users, invoke the contract. Now that we have considered how our smart contract is intended to work and benefit users, we design our contract's interface to the wider world. Because the actions define how users invoke the contract, it is ideal to lay them out in the design phase rather than during implementation, so that they form a natural interface rather than merely the interface that was easy to make. While the final implementation may deviate slightly from the actions laid out below, adhering to the design will help to ensure that our end result is relevant and cognizable to users.
+The actions of a contract are the sole interface by which applications, on behalf of users, interact with the contract. Now that we have considered how our smart contract is intended to work and benefit users, we design our contract's interface to the wider world. Because the actions define how users invoke the contract, it is ideal to lay them out in the design phase rather than during implementation, so that they form a natural interface rather than merely the interface that was easy to make. While the final implementation may deviate slightly from the actions laid out below, adhering to the design will help to ensure that our end result is relevant and cognizable to users.
 
 **Principles of Smart Contract Interfaces** When designing the actions for a smart contract, it is helpful to consider how smart contract interfaces work in real life. To execute an action in a smart contract, the action is added to a transaction, signed, and broadcast to the blockchain network. There is a variable time delay between the time of broadcast and the time the transaction is included in a block. In some cases, a lot can change during this delay. This creates an uncertainty principle of blockchain interaction: the state of the database can be seen by clients as they craft their transaction, but the client cannot be certain that the state will not have been changed by the time the action runs. Consider also during the interface design that smart contract interfaces are often difficult to update: there are technical complications that must be considered, but often there are politics involved in updating smart contracts as well.
 
@@ -285,7 +288,8 @@ These actions can be used by a cargo carrier to manage inventory in their care.
      - carrier [AccountId] The cargo carrier delivering cargo. This account must authorize the
          transaction.
      - warehouse [WarehouseId] The warehouse receiving a shipment.
-     - manager [AccountId] The warehouse manager authorizing the receipt of shipment.
+     - manager [AccountId] The warehouse manager authorizing the receipt of shipment. This account
+         must authorize the transaction.
      - manifest [ManifestId] The manifest of inventory from which to deliver cargo.
      - submanifest [map<CargoId, uint32>] If empty, the entire manifest is delivered. Otherwise,
          only the specified cargo IDs and quantities are delivered.
@@ -296,7 +300,7 @@ A smart contract persists data using the blockchain database, which is an in-mem
 
 The full definition of a properly normalized database schema for the contract is an implementation concern rather than a design concern; however, it is beneficial to consider the database during the design phase and to form a general plan for what tables will exist and what information they will store.
 
-**Table Scopes** The BAL uses a kind of table partitioning scheme called table "scopes." Scopes are used to partition rows of a table off from each other into sections that a single execution of a contract action will not cross over. This paves the way for a future parallelization of smart contract execution, where multiple actions that affect different scopes of a table could execute simultaneously without risk of them possibly interfering with each other or creating race conditions. While scopes are not generally effective today, it is useful to use them anyways, to enable the contract to benefit from future performance gains.
+**Table Scopes** The BAL uses a kind of table partitioning scheme called table "scopes." Based upon the EOS blockchain's scopes, scopes are used to partition rows of a table off from each other into sections that a single execution of a contract action will not cross over. This paves the way for a future parallelization of smart contract execution, where multiple actions that affect different scopes of a table could execute simultaneously without risk of them possibly interfering with each other or creating race conditions. While this parallelization is not yet implemented today, it is useful to design scopes into contracts anyways, to enable them to benefit from future performance gains.
 
 Our supply chain tracking smart contract will use the following tables. It is possible that other tables or data may be added during implementation, but this provides a general outline of the database for the contract.
  - Warehouse list
@@ -314,7 +318,7 @@ Our supply chain tracking smart contract will use the following tables. It is po
 
 
 ### Smart Contract Implementation
-With our contract design in hand, it is time to begin coding the implementation. Let's start by making an empty contract and getting it to build. Before we begin, we need to install the blockchain SDK for at least one supported blockchain. It may be helpful to consult the [BAL Development Environment Tutorial](DevEnv.md) for guidance on how to get ready to build contracts.
+With our contract design in hand, it is time to begin coding the implementation. Let's start by making an empty contract and getting it to build. Before we begin, we need to install the blockchain SDK for at least one supported blockchain. In the case of EOS, we would install the [Leap CDT](https://github.com/AntelopeIO/cdt/) as Leap is the foundation of the EOS blockchain. We will also need git, cmake, and the various other components of a development environment. Installing these is left as an exercise for the reader.
 
 #### Initialize the Repo
 Once our development environment is ready, we can begin. First, create a new git repository and make an initial commit (yes, it's a bit silly, but it's necessary for the next step!)
@@ -335,20 +339,20 @@ Initialized empty Git repository in ~/SupplyChain/.git/
 Alright. Now we add the BAL to our repo. The best way to do this is as a git subtree, which is why we needed the first commit in: git can't add a subtree without at least one commit.
 ```
 [~/SupplyChain] $ # First, we add a remote for the BAL upstream repo
-[~/SupplyChain] $ git remote add -f bal-upstream https://github.com/dapp-protocols/blockchain-abstraction-layer/
+[~/SupplyChain] $ git remote add -f bal-upstream https://github.com/dapp-protocols/Blockchain-Abstraction-Layer
 remote: Enumerating objects: 77, done.
 remote: Counting objects: 100% (77/77), done.
 remote: Compressing objects: 100% (73/73), done.
 remote: Total 77 (delta 31), reused 0 (delta 0), pack-reused 0
 Unpacking objects: 100% (77/77), 48.42 KiB | 550.00 KiB/s, done.
-From https://github.com/dapp-protocols/blockchain-abstraction-layer
+From https://github.com/dapp-protocols/Blockchain-Abstraction-Layer
  * [new branch]      master     -> bal-upstream/master
 [~/SupplyChain] $ 
 [~/SupplyChain] $ # Next, add the subtree as a new directory in the SupplyChain repo
 [~/SupplyChain] $ git subtree add --prefix BAL bal-upstream master --squash
-git fetch bal-upstream tutorial
-From https://github.com/dapp-protocols/blockchain-abstraction-layer
- * branch            tutorial   -> FETCH_HEAD
+git fetch bal-upstream master
+From https://github.com/dapp-protocols/Blockchain-Abstraction-Layer
+ * branch            master   -> FETCH_HEAD
 Added dir 'BAL'
 [~/SupplyChain] $ 
 [~/SupplyChain] $ # Look here: we have the BAL in our repo!
@@ -400,31 +404,21 @@ BAL_CONTRACT(NAME SupplyChain BAL_PATH BAL SOURCES main.cpp)
 
 Now run CMake and build the contract!
 ```
-[~/SupplyChain] $ cmake .
+[~/SupplyChain] $ cmake . -DCDT_PATH=/opt/leap-cdt
 -- Defining BAL contract targets for contract SupplyChain
-Peerplays found; enabling Peerplays contract build
--- Setting up Eosio Wasm Toolchain 1.7.0 at /opt/eosio.cdt
-EOSIO CDT Found; enabling EOSIO contract build
+-- Setting up CDT Wasm Toolchain 3.1.0-dev at /opt/leap-cdt
+Leap CDT Found; enabling Leap contract build
 -- Configuring done
 -- Generating done
 -- Build files have been written to: ~/SupplyChain
 [~/SupplyChain] $ 
 [~/SupplyChain] $ make
-Scanning dependencies of target SupplyChainContractPeerplays
-[ 25%] Building CXX object BAL/Peerplays/CMakeFiles/SupplyChainContractPeerplays.dir/__/__/main.cpp.o
-[ 50%] Linking CXX shared module libSupplyChainContractPeerplays.so
-[ 50%] Built target SupplyChainContractPeerplays
-Scanning dependencies of target SupplyChainContractEosio.wasm
-[ 75%] Building CXX object BAL/EOSIO/CMakeFiles/SupplyChainContractEosio.wasm.dir/__/__/main.cpp.o
-Warning, empty ricardian clause file
-Warning, empty ricardian clause file
-[100%] Linking CXX executable SupplyChainContractEosio.wasm
-[100%] Built target SupplyChainContractEosio.wasm
+  <... output of make ...>
 [~/SupplyChain] $ 
 ```
 
 #### Add Our First Action
-Now our contract is built for EOSIO at `BAL/EOSIO/supplychain.wasm` and for Peerplays at `BAL/Peerplays/libsupplychain.so`. Let's go ahead and add a simple action. Edit `SupplyChain.hpp` and add a method, then describe it into the actions list:
+Now our contract is built for Leap at `BAL/Leap/SupplyChain/SupplyChain.wasm`. Let's go ahead and add a simple action. Edit `SupplyChain.hpp` and add a method, then describe it into the actions list:
 ```c++
 #pragma once
 
@@ -448,9 +442,9 @@ public:
     using Tables = Util::TypeList::List<>;
 };
 ```
-See that `DESCRIBE_ACTION` macro there? That's a shorthand to create a record for the BAL, telling it what our action is called and where the function is. The arguments are the action's name and the full name of the method, including the class name. The action's name isn't just a string, it's actually a `BAL::Name` which is the same as `EOSIO::name`. As a result, there are some [funky rules](https://developers.eos.io/manuals/eosio.cdt/latest/best-practices/naming-conventions/#table-struct-class-function-action-names) on how those names are formatted.
+See that `DESCRIBE_ACTION` macro there? That's a shorthand to create a record for the BAL, telling it what our action is called and where the function is. The arguments are the action's name and the full name of the method, including the class name. The action's name isn't just a string, it's actually a `BAL::Name` which is the same as `eosio::name`. As a result, there are some [funky rules](https://developers.eos.io/manuals/eosio.cdt/latest/best-practices/naming-conventions/#table-struct-class-function-action-names) on how those names are formatted.
 
-To deploy the contract on EOSIO, we'll also need an ABI. We can make the EOSIO compiler attempt to generate those automatically by putting `[[eosio::action("action.name")]]` at the beginning of our action methods, i.e. `[[eosio::action("say.hello")]] void SayHello(std::string name)`, but to avoid cluttering up our code, here's an ABI for our contract:
+To deploy the contract on EOS and other Antelope blockchains, we'll also need an ABI. We can make the Leap compiler attempt to generate those automatically by putting `[[eosio::action("action.name")]]` at the beginning of our action methods, i.e. `[[eosio::action("say.hello")]] void SayHello(std::string name)`, but this process is inexact and may require manual intervention. To avoid confusion, here's an ABI for our contract:
 
 ```json
 {
@@ -481,14 +475,14 @@ To deploy the contract on EOSIO, we'll also need an ABI. We can make the EOSIO c
     "variants": []
 }
 ```
-Now that we have our first action, we can load our contract into a blockchain and run it! This is left as an exercise for the reader, but on EOSIO, you can find guidance in the official documentation:
+Now that we have our first action, we can load our contract into a blockchain and run it! This is left as an exercise for the reader, but on EOS, you can find guidance in the official documentation:
 1. [Create contract wallet](https://developers.eos.io/welcome/v2.0/getting-started/development-environment/create-development-wallet)
 1. [Launch a testnet](https://developers.eos.io/welcome/v2.0/getting-started/development-environment/start-your-node-setup)
 1. [Create some user accounts](https://developers.eos.io/welcome/v2.0/getting-started/development-environment/create-test-accounts)
 1. [Create your contract account](https://developers.eos.io/welcome/v2.0/tutorials/tic-tac-toe-game-contract/#contract-account)
 1. [Deploy and run your contract](https://developers.eos.io/welcome/v2.0/tutorials/tic-tac-toe-game-contract/#deploy)
 
-**EOSIO Note:** If contract logs aren't showing in `nodeos` output, [try this](https://eosio.stackexchange.com/questions/5264/eosio-v2-0-2-contract-prints-are-not-shown-even-using-nodeos-with-contracts)
+**EOS Note:** If contract logs aren't showing in `nodeos` output, [try this](https://eosio.stackexchange.com/questions/5264/eosio-v2-0-2-contract-prints-are-not-shown-even-using-nodeos-with-contracts)
 
 #### Writing Supply Chain Tracking Contract
 Now that we've covered the basics of creating a contract and writing our first action, let's change our `SayHello` action to our first real action: `AddWarehouse`. To implement this action, we'll need our first table as well, so let's define that too:
@@ -501,7 +495,7 @@ Now that we've covered the basics of creating a contract and writing our first a
 #include <BAL/Reflect.hpp>
 
 // Import some common names
-using BAL::AccountId;
+using BAL::AccountHandle;
 using BAL::ID;
 using BAL::Name;
 using BAL::Table;
@@ -517,7 +511,7 @@ class SupplyChain : public BAL::Contract {
 public:
     using BAL::Contract::Contract;
 
-    void addWarehouse(AccountId manager, string description);
+    void addWarehouse(AccountHandle manager, string description);
 
     struct Warehouse {
         // Make some declarations to tell BAL about our table
@@ -525,7 +519,7 @@ public:
         constexpr static Name TableName = WarehouseTableName;
 
         WarehouseId id;
-        AccountId manager;
+        AccountHandle manager;
         string description;
 
         // Getter for the primary key (this is required)
@@ -540,7 +534,9 @@ public:
 // Reflect the table fields
 BAL_REFLECT(SupplyChain::Warehouse, (id)(manager)(description)
 ```
-To define a table, we must define a row of the table. This is just a struct; however, there are several accoutrements that need to go along with the struct to turn it into a table. We need a unique `BAL::Name` for it, a unique ID type for it, and it needs to declare public members specifying its name, what contract it belongs to, and how to get its primary key. Finally, the row needs to be reflected at the bottom so the BAL knows what its fields are. Once we've made all of these declarations, we can turn a row into a table by instantiating the `Table` template with it. We name our row `Warehouse` and name the table `Warehouses`. Then we add our table to our contract's list of Tables, and our table is ready to use.
+Note the use of the `AccountHandle` type to represent the manager account. This is a type defined by the BAL to reference the type conventionally used on the current blockchain back-end to uniquely identify an account. For example, on Leap, this would be an `eosio::name`. This is the type contracts should typically use to reference accounts in their actions and tables.
+
+To define a table, we define a row of the table. This is just a struct; however, there are several accoutrements that need to go along with the struct to turn it into a table. We need a unique `BAL::Name` for it, a unique ID type for it, and it needs to declare public members specifying its name, what contract it belongs to, and how to get its primary key. Finally, the row needs to be reflected at the bottom so the BAL knows what its fields are. Once we've made all of these declarations, we can turn a row into a table by instantiating the `Table` template with it. We name our row `Warehouse` and name the table `Warehouses`. Then we add our table to our contract's list of Tables, and our table is ready to use.
 
 ##### Warehouse Management Actions
 Next, we implement our action in a new `SupplyChain.cpp` file:
@@ -552,7 +548,7 @@ constexpr static auto GLOBAL_SCOPE = "global"_N.value;
 // Declare a constant for the maximum description string length
 constexpr static auto MAX_DESCRIPTION_SIZE = 250;
 
-void SupplyChain::addWarehouse(AccountId manager, string description) {
+void SupplyChain::addWarehouse(AccountHandle manager, string description) {
     // Require the manager's authorization to create a warehouse under his authority
     requireAuthorization(manager);
 
@@ -583,7 +579,7 @@ We add our new `SupplyChain.cpp` file to our `CMakeLists.txt` sources list, and 
 Now we implement our next action, UpdateWarehouse:
 ```c++
 
-void SupplyChain::updateWarehouse(AccountId manager, WarehouseId warehouseId, optional<AccountId> newManager,
+void SupplyChain::updateWarehouse(AccountHandle manager, WarehouseId warehouseId, optional<AccountHandle> newManager,
                                   optional<string> newDescription, string documentation) {
     // Verify that we're actually changing something
     BAL::Verify(newManager.has_value() || newDescription.has_value(),
@@ -633,10 +629,13 @@ One might expect the DeleteWarehouse action to come next, but it deletes invento
 ```c++
 using BAL::TransactionId;
 using std::vector;
+using std::optional;
 /* ... */
 constexpr static auto InventoryTableName = "inventory"_N;
 /* ... */
 using InventoryId = BAL::ID<BAL::NameTag<InventoryTableName>>;
+/* ... */
+    void updateWarehouse(AccountHandle manager, WarehouseId warehouseId, optional<AccountHandle> newManager, optional<string> newDescription, string documentation);
 /* ... */
     struct Inventory {
         using Contract = SupplyChain;
@@ -658,7 +657,7 @@ BAL_REFLECT(SupplyChain::Inventory, (id)(description)(origin)(movement)(quantity
 ```
 Now we can write DeleteWarehouse:
 ```c++
-void SupplyChain::deleteWarehouse(WarehouseId warehouseId, AccountId manager,
+void SupplyChain::deleteWarehouse(WarehouseId warehouseId, AccountHandle manager,
                                   bool removeInventory, string documentation) {
     // Validity checks
     requireAuthorization(manager);
@@ -689,12 +688,12 @@ void SupplyChain::deleteWarehouse(WarehouseId warehouseId, AccountId manager,
     BAL::Log("Successfully deleted warehouse", warehouseId);
 }
 ```
-This concludes the implementation of the warehouse management actions!
+Make sure the new actions are included in the `Actions` list in the header. This concludes the implementation of the warehouse management actions!
 
 ##### Inventory Management Actions
 Next, we implement our actions for inventory management. We begin with AddInventory, also known as `add.invntry`:
 ```c++
-void SupplyChain::addInventory(WarehouseId warehouseId, AccountId manager, string description, uint32_t quantity) {
+void SupplyChain::addInventory(WarehouseId warehouseId, AccountHandle manager, string description, uint32_t quantity) {
     // Validity checks
     requireAuthorization(manager);
     BAL::Verify(description.size() <= MAX_DESCRIPTION_SIZE,
@@ -727,7 +726,7 @@ BAL_REFLECT_TYPENAME(Adjustment)
 
 And now for the implementation:
 ```c++
-void SupplyChain::adjustInventory(WarehouseId warehouseId, AccountId manager, InventoryId inventoryId,
+void SupplyChain::adjustInventory(WarehouseId warehouseId, AccountHandle manager, InventoryId inventoryId,
                                   optional<string> newDescription, optional<Adjustment> quantityAdjustment,
                                   string documentation) {
     // Common validity checks
@@ -784,7 +783,7 @@ void SupplyChain::adjustInventory(WarehouseId warehouseId, AccountId manager, In
 
 Next, we implement RemoveInventory, also known as `rm.invntry`:
 ```c++
-void SupplyChain::removeInventory(WarehouseId warehouseId, AccountId manager, InventoryId inventoryId,
+void SupplyChain::removeInventory(WarehouseId warehouseId, AccountHandle manager, InventoryId inventoryId,
                                   uint32_t quantity, bool deleteRecord, string documentation) {
     // Common validity checks
     requireAuthorization(manager);
@@ -836,10 +835,10 @@ using ProductionList = map<string, uint32_t>;
 BAL_REFLECT_TYPENAME(ProductionList)
 ```
 
-Now we can implement our ManufactureInventory action (calling it `manufacture`). Since we'll be adding new inventory records, which is redundant with the AddInventory action we implemented earlier, we extract the relevant code to a protected method, to avoid duplicate code.
+Now we can implement our ManufactureInventory action (calling its action `manufacture`). Since we'll be adding new inventory records, which is redundant with the AddInventory action we implemented earlier, we extract the relevant code to a protected method, to avoid duplicate code.
 
 ```c++
-void SupplyChain::createInventory(WarehouseId warehouseId, AccountId payer, string description, uint32_t quantity) {
+void SupplyChain::createInventory(WarehouseId warehouseId, AccountHandle payer, string description, uint32_t quantity) {
     auto stock = getTable<Stock>(warehouseId);
     InventoryId newId = stock.nextId();
     stock.create(payer, [newId, &description, quantity, origin=currentTransactionId()](Inventory& item) {
@@ -852,7 +851,7 @@ void SupplyChain::createInventory(WarehouseId warehouseId, AccountId payer, stri
 ```
 And now for our action:
 ```c++
-void SupplyChain::manufactureInventory(WarehouseId warehouseId, AccountId manager, PickList consume,
+void SupplyChain::manufactureInventory(WarehouseId warehouseId, AccountHandle manager, PickList consume,
                                        ProductionList produce, bool deleteConsumed, string documentation) {
     // Common validity checks
     requireAuthorization(manager);
@@ -917,8 +916,8 @@ void SupplyChain::manufactureInventory(WarehouseId warehouseId, AccountId manage
 
 Next comes TransferInventory, which we name `xfer.invntry`:
 ```c++
-void SupplyChain::transferInventory(WarehouseId sourceWarehouseId, AccountId sourceManager,
-                                    WarehouseId destinationWarehouseId, AccountId destinationManager,
+void SupplyChain::transferInventory(WarehouseId sourceWarehouseId, AccountHandle sourceManager,
+                                    WarehouseId destinationWarehouseId, AccountHandle destinationManager,
                                     PickList manifest, bool deleteConsumed, string documentation) {
     // Common validity checks
     requireAuthorization(sourceManager);
@@ -1039,7 +1038,7 @@ BAL_REFLECT(SupplyChain::Manifest, (id)(description)(sender))
 BAL_REFLECT(SupplyChain::Cargo, (id)(manifest)(description)(origin)(movement)(quantity))
 ```
 
-Now we are ready to implement the `ship.invntry` action. Along the way, however, we decide that the process of fetching items in a `PickList` and checking the available quantities is overly redundant between our actions, so we extract it into a method and use that method to simplify the implementations of our Manufacture, Transfer, and Ship Inventory actions. To keep the method's interface clean, we define a type alias by our declaration: `using PickedItems = map<InventoryId, std::reference_wrapper<const Inventory>>;`. After this, we define our new method and action like so:
+Now we are ready to implement the `ship.invntry` action. Along the way, however, we decide that the process of fetching items in a `PickList` and checking the available quantities is overly redundant between our actions, so we extract it into a method and use that method to simplify the implementations of our Manufacture, Transfer, and Ship Inventory actions. To keep the method's interface clean, we define a type alias, in the class by our declaration so we can use the Inventory type: `using PickedItems = map<InventoryId, std::reference_wrapper<const Inventory>>;`. After this, we define our new method and action like so:
 ```c++
 SupplyChain::PickedItems SupplyChain::processPickList(const Stock& stock, PickList list) {
     PickedItems picked;
@@ -1054,7 +1053,7 @@ SupplyChain::PickedItems SupplyChain::processPickList(const Stock& stock, PickLi
     return picked;
 }
 
-void SupplyChain::shipInventory(WarehouseId warehouseId, AccountId manager, AccountId carrier, PickList manifest,
+void SupplyChain::shipInventory(WarehouseId warehouseId, AccountHandle manager, AccountHandle carrier, PickList manifest,
                                 bool deleteConsumed, string documentation) {
     // Common checks
     requireAuthorization(manager);
@@ -1120,7 +1119,7 @@ The implementation of the inventory management actions are now complete.
 ##### Cargo Carrier Actions
 Finally, we implement the cargo carrier actions. We begin with RemoveCargo, or `rm.cargo`:
 ```c++
-void SupplyChain::removeCargo(AccountId carrier, ManifestId manifestId, CargoId cargoId, uint32_t quantity,
+void SupplyChain::removeCargo(AccountHandle carrier, ManifestId manifestId, CargoId cargoId, uint32_t quantity,
                               string documentation) {
     // Validity checks
     requireAuthorization(carrier);
@@ -1184,7 +1183,7 @@ Next, in the process of implementing this action, we decide that, once again, th
 ```
 Excellent, now we can implement our action. Some interesting bug-catching logic comes into play on this one, so look closely:
 ```c++
-void SupplyChain::transferCargo(AccountId sourceCarrier, AccountId destinationCarrier, ManifestId manifestId,
+void SupplyChain::transferCargo(AccountHandle sourceCarrier, AccountHandle destinationCarrier, ManifestId manifestId,
                                 CargoManifest submanifest, string documentation) {
     // Validity checks
     requireAuthorization(sourceCarrier);
@@ -1225,8 +1224,8 @@ void SupplyChain::transferCargo(AccountId sourceCarrier, AccountId destinationCa
 
     // Now check that source != destination. Why? Well, we're past the empty manifest check now. If ever a carrier
     // had an empty manifest, it would be a bug, and it could also be rather annoying to get rid of. The check above
-    // gets rid of it, but only if we get that far. By moving the check here, we allow a carrier to get rid of his
-    // empty manifest (should never happen, but if it did...) simply by transferring it to himself.
+    // gets rid of it, but only if we get that far. By moving this check to here, we allow a carrier to get rid of
+    // his empty manifest (which should never happen, but if it did...) simply by transferring it to himself.
     BAL::Verify(sourceCarrier != destinationCarrier, "Cannot transfer cargo from", sourceCarrier, "to itself.");
 
     // OK, we've picked our cargo to transfer. All checks passed; let's transfer it!
@@ -1286,7 +1285,7 @@ void SupplyChain::transferCargo(AccountId sourceCarrier, AccountId destinationCa
 
 And now for our final action, DeliverCargo or `dlvr.cargo`:
 ```c++
-void SupplyChain::deliverCargo(AccountId carrier, WarehouseId warehouseId, AccountId manager, ManifestId manifestId,
+void SupplyChain::deliverCargo(AccountHandle carrier, WarehouseId warehouseId, AccountHandle manager, ManifestId manifestId,
                                CargoManifest submanifest, string documentation) {
     // Validity checks
     requireAuthorization(carrier);
@@ -1371,10 +1370,8 @@ We now have our back-end solution for a decentralized, verifiable, open source i
 #### Testing our New Contract
 A complete BAL contract testing framework is planned. This framework will be capable of launching a new testnet, setting up accounts, loading the contract, invoking contract actions, and verifying assertions about the database state. At present, however, this is still a work-in-progress. This page will be updated with the solution when it is ready.
 
-Until then, directions for manually loading and testing a contract are available in the Development Environment Tutorial for [EOSIO](https://github.com/dapp-protocols/Blockchain-Abstraction-Layer/blob/master/DevEnv.md#Deploying-and-running-an-eosio-contract) and [Peerplays](https://github.com/dapp-protocols/Blockchain-Abstraction-Layer/blob/master/DevEnv.md#building-and-deploying-a-contract-for-peerplays).
-
 #### The Long Road Ahead
 Once our contract is tested and deployed on a private or public blockchain, we will have a complete back-end solution around which we can build one or many decentralized applications. Unfortunately, a blockchain and smart contract back-end does not an application make -- nor does it make an application platform. Many problems yet exist before a consistent app can be made which is secured and decentralized to the standards set forth by the back-end. Applications based on this back-end will likely reference records via IPFS, which opens the question of what will those records contain, exactly, and how will they be hosted? Moreover, technology is yet to be developed to securely transport the application code to the user device and provide that app with a secure environment and frameworks to support its runtime operations without compromising the user's privacy and security.
 
-In their quest to provide end-to-end verifiable, zero-compromise solutions to the user, the company that originally conceived of the BAL, Follow My Vote, is working to design and implement solutions to these issues and many others. If you, dear reader, would also like to see the promise of blockchain and decentralized, verifiable technology wholly fulfilled with end-to-end solutions that ensure the integrity of the entire system, back-end infrastructure to front-end app... if you would like to see this potential reach fruition, then perhaps you would like to work with us toward this goal.
+In their quest to provide end-to-end verifiable, zero-compromise solutions to the user, Follow My Vote is working to design and implement solutions to these issues and many others. If you, dear reader, would also like to see the promise of blockchain and decentralized, verifiable technology wholly fulfilled with end-to-end solutions that ensure the integrity of the entire system, back-end infrastructure to front-end app... if you would like to see this potential reach fruition, then perhaps you would like to work with us toward this goal.
 If so, we invite you to throw your hat in the ring and try your hand at our [dev challenge](https://followmyvote.com/dev-challenge/). We look forward to seeing your submission!

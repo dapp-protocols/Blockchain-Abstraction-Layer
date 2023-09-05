@@ -1,26 +1,14 @@
 #pragma once
 
 #include <BAL/BAL.hpp>
-#include <BAL/Types.hpp>
-#include <BAL/Table.hpp>
 #include <BAL/Reflect.hpp>
 
-#include <variant>
-
 // Import some common names
-using BAL::AccountHandle;
-using BAL::TransactionId;
-using BAL::ID;
-using BAL::MakeCompositeKey;
 using BAL::Name;
 using BAL::SecondaryIndex;
 using BAL::Table;
 using BAL::UInt128;
-using std::map;
 using std::string;
-using std::vector;
-using std::variant;
-using std::optional;
 
 // Give names to all of the tables in our contract
 constexpr static auto GroceriesTableName = "groceries"_N;
@@ -51,6 +39,8 @@ public:
 
         using SecondaryIndexes = Util::TypeList::List<SecondaryIndex<BY_NET_WEIGHT, GroceryItem, UInt128, &GroceryItem::net_weight_key>>;
 
+        // Reflect the table fields
+        BAL_REFLECT(GroceryItem, (id)(name)(sku)(net_weight_grams))
     };
     using GroceryItems = Table<GroceryItem>;
     using Tables = Util::TypeList::List<GroceryItems>;
@@ -67,6 +57,8 @@ private:
 
     void populateDatasetA(GroceryItems& items);
     void populateDatasetB(GroceryItems& items);
+
+    void testReflection();
 
     void testScope();
 
@@ -97,5 +89,3 @@ private:
     void testModify1(GroceryItems& grocery_items, Modifier& modifier);
 };
 
-// Reflect the table fields
-BAL_REFLECT(BALTests::GroceryItem, (id)(name)(sku)(net_weight_grams))

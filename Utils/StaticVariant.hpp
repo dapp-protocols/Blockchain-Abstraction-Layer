@@ -75,14 +75,14 @@ protected:
    std::abort();
 #endif
         _tag = tag;
-        TypeList::runtime::Dispatch(List(), tag, [this](auto t) {
+        TypeList::Runtime::Dispatch(List(), tag, [this](auto t) {
             using T = typename decltype(t)::type;
             new(reinterpret_cast<T*>(_storage.data())) T();
         });
     }
 
     void clean() {
-        TypeList::runtime::Dispatch(List(), _tag, [data=_storage.data()](auto t) {
+        TypeList::Runtime::Dispatch(List(), _tag, [data=_storage.data()](auto t) {
             using T = typename decltype(t)::type;
             reinterpret_cast<T*>(data)->~T();
         });
@@ -128,7 +128,7 @@ public:
     /// incompatible type
     template<typename... Other>
     static StaticVariant ImportFrom(const StaticVariant<Other...>& other) {
-        return TypeList::runtime::Dispatch(TypeList::List<Other...>(), other.which(), [&other](auto t) {
+        return TypeList::Runtime::Dispatch(TypeList::List<Other...>(), other.which(), [&other](auto t) {
             using other_type = typename decltype(t)::type;
             return ImportHelper<other_type>::construct(other.template get<other_type>());
         });
@@ -137,7 +137,7 @@ public:
     /// incompatible type
     template<typename... Other>
     static StaticVariant ImportFrom(StaticVariant<Other...>&& other) {
-        return TypeList::runtime::Dispatch(TypeList::List<Other...>(), other.which(), [&other](auto t) {
+        return TypeList::Runtime::Dispatch(TypeList::List<Other...>(), other.which(), [&other](auto t) {
             using other_type = typename decltype(t)::type;
             return ImportHelper<other_type>::construct(std::move(other.template get<other_type>()));
         });
@@ -151,21 +151,21 @@ public:
     template<typename... Other>
     StaticVariant(const StaticVariant<Other...>& cpy)
     {
-       TypeList::runtime::Dispatch(TypeList::List<Other...>(), cpy.which(), [this, &cpy](auto t) mutable {
+       TypeList::Runtime::Dispatch(TypeList::List<Other...>(), cpy.which(), [this, &cpy](auto t) mutable {
           this->init(cpy.template get<typename decltype(t)::type>());
        });
     }
 
     StaticVariant(const StaticVariant& cpy)
     {
-       TypeList::runtime::Dispatch(List(), cpy.which(), [this, &cpy](auto t) mutable {
+       TypeList::Runtime::Dispatch(List(), cpy.which(), [this, &cpy](auto t) mutable {
           this->init(cpy.template get<typename decltype(t)::type>());
        });
     }
 
     StaticVariant(StaticVariant&& mv)
     {
-       TypeList::runtime::Dispatch(List(), mv.which(), [this, &mv](auto t) mutable {
+       TypeList::Runtime::Dispatch(List(), mv.which(), [this, &mv](auto t) mutable {
           this->init(std::move(mv.template get<typename decltype(t)::type>()));
        });
     }
@@ -173,7 +173,7 @@ public:
     template<typename... Other>
     StaticVariant(StaticVariant<Other...>&& mv)
     {
-       TypeList::runtime::Dispatch(TypeList::List<Other...>(), mv.which(), [this, &mv](auto t) mutable {
+       TypeList::Runtime::Dispatch(TypeList::List<Other...>(), mv.which(), [this, &mv](auto t) mutable {
            this->init(std::move(mv.template get<typename decltype(t)::type>()));
        });
     }
@@ -194,7 +194,7 @@ public:
     StaticVariant& operator=(const StaticVariant& v) {
        if( this == &v ) return *this;
        clean();
-       TypeList::runtime::Dispatch(List(), v.which(), [this, &v](auto t)mutable {
+       TypeList::Runtime::Dispatch(List(), v.which(), [this, &v](auto t)mutable {
           this->init(v.template get<typename decltype(t)::type>());
        });
        return *this;
@@ -202,7 +202,7 @@ public:
     StaticVariant& operator=(StaticVariant&& v) {
        if( this == &v ) return *this;
        clean();
-       TypeList::runtime::Dispatch(List(), v.which(), [this, &v](auto t)mutable {
+       TypeList::Runtime::Dispatch(List(), v.which(), [this, &v](auto t)mutable {
           this->init(std::move(v.template get<typename decltype(t)::type>()));
        });
        return *this;
@@ -211,7 +211,7 @@ public:
     friend bool operator==(const StaticVariant& a, const StaticVariant& b) {
        if (a.which() != b.which())
           return false;
-       return TypeList::runtime::Dispatch(List(), a.which(), [&a, &b](auto t) {
+       return TypeList::Runtime::Dispatch(List(), a.which(), [&a, &b](auto t) {
           using Value = typename decltype(t)::type;
           return a.template get<Value>() == b.template get<Value>();
        });
@@ -220,7 +220,7 @@ public:
     friend bool operator<(const StaticVariant& a, const StaticVariant& b) {
         if (a.which() < b.which()) return true;
         if (a.which() > b.which()) return false;
-        return TypeList::runtime::Dispatch(List(), a.which(), [&a, &b](auto t) {
+        return TypeList::Runtime::Dispatch(List(), a.which(), [&a, &b](auto t) {
             using T = typename decltype(t)::type;
             return a.template get<T>() < b.template get<T>();
         });
@@ -278,7 +278,7 @@ public:
 #else
             std::abort();
 #endif
-        return TypeList::runtime::Dispatch(List(), tag, [&v, data](auto t) {
+        return TypeList::Runtime::Dispatch(List(), tag, [&v, data](auto t) {
             return v(*reinterpret_cast<typename decltype(t)::type*>(data));
         });
     }
@@ -291,7 +291,7 @@ public:
 #else
             std::abort();
 #endif
-        return TypeList::runtime::Dispatch(List(), tag, [&v, data](auto t) {
+        return TypeList::Runtime::Dispatch(List(), tag, [&v, data](auto t) {
             return v(*reinterpret_cast<typename decltype(t)::type*>(data));
         });
     }
@@ -304,7 +304,7 @@ public:
 #else
             std::abort();
 #endif
-        return TypeList::runtime::Dispatch(List(), tag, [&v, data](auto t) {
+        return TypeList::Runtime::Dispatch(List(), tag, [&v, data](auto t) {
             return v(*reinterpret_cast<const typename decltype(t)::type*>(data));
         });
     }
@@ -317,7 +317,7 @@ public:
 #else
             std::abort();
 #endif
-        return TypeList::runtime::Dispatch(List(), tag, [&v, data](auto t) {
+        return TypeList::Runtime::Dispatch(List(), tag, [&v, data](auto t) {
             return v(*reinterpret_cast<const typename decltype(t)::type*>(data));
         });
     }
@@ -341,14 +341,14 @@ public:
 };
 } // namespace Util
 
-#ifdef BAL_PLATFORM_EOSIO
+#ifdef BAL_PLATFORM_LEAP
 namespace eosio {
 
 template<typename Stream, typename... Ts>
 Stream& operator<<(Stream& s, const Util::StaticVariant<Ts...>& v) {
     uint64_t discriminant = v.which();
     s << discriminant;
-    Util::TypeList::runtime::Dispatch(Util::TypeList::List<Ts...>(), discriminant, [&s, &v](auto i) {
+    Util::TypeList::Runtime::Dispatch(Util::TypeList::List<Ts...>(), discriminant, [&s, &v](auto i) {
         using T = typename decltype(i)::type;
         s << v.template get<T>();
     });
@@ -358,7 +358,7 @@ template<typename Stream, typename... Ts>
 Stream& operator>>(Stream& s, Util::StaticVariant<Ts...>& v) {
     uint64_t discriminant;
     s >> discriminant;
-    Util::TypeList::runtime::Dispatch(Util::TypeList::List<Ts...>(), discriminant, [&s, &v](auto i) {
+    Util::TypeList::Runtime::Dispatch(Util::TypeList::List<Ts...>(), discriminant, [&s, &v](auto i) {
         using T = typename decltype(i)::type;
         T value;
         s >> value;

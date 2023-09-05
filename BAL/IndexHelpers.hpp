@@ -1,5 +1,3 @@
-#ifdef BAL_PLATFORM_PEERPLAYS
-#include "BAL_Peerplays/IndexHelpers.hpp"
-#elif BAL_PLATFORM_EOSIO
-#include "BAL_EOSIO/IndexHelpers.hpp"
+#ifdef BAL_PLATFORM_LEAP
+#include "BAL_Leap/IndexHelpers.hpp"
 #endif

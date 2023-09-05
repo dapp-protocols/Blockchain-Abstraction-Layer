@@ -32,6 +32,8 @@ template<typename T, typename... Ts>
 struct length<T, Ts...> { constexpr static std::size_t value = length<Ts...>::value+1; };
 
 template<typename...> struct concat;
+template<> struct concat<> { using type = List<>; };
+template<typename... Types> struct concat<List<Types...>> { using type = List<Types...>; };
 template<typename... OldTypes, typename... NewTypes>
 struct concat<List<OldTypes...>, List<NewTypes...>> {
    using type = List<OldTypes..., NewTypes...>;
@@ -227,7 +229,7 @@ template<typename List>
 using index = typename impl::zip<typename impl::makeSequence<length<List>()>::type, List>::type;
 
 /// This namespace contains some utilities that provide runtime operations on TypeLists
-namespace runtime {
+namespace Runtime {
 /// Type wrapper object allowing arbitrary types to be passed to functions as information rather than data
 template<typename T> struct wrapper { using type = T; };
 
@@ -272,4 +274,4 @@ void ForEach(List<Types...>, Callable c) {
    (void)(trues);
 }
 
-} } } // namespace Util::TypeList::runtime
+} } } // namespace Util::TypeList::Runtime
